@@ -1,5 +1,31 @@
-import { describe, expect, it } from 'vitest';
-import { buildPwChannelJson, parseChannelListFromHtml, parsePwEpgXml } from '../../src/epgs/epg_pw';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { mkdirMock, writeFileMock, writeEpgJsonFromXmlMock } = vi.hoisted(() => ({
+  mkdirMock: vi.fn(),
+  writeFileMock: vi.fn(),
+  writeEpgJsonFromXmlMock: vi.fn(),
+}));
+
+vi.mock('fs/promises', async () => {
+  const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises');
+
+  return {
+    ...actual,
+    mkdir: mkdirMock,
+    writeFile: writeFileMock,
+  };
+});
+
+vi.mock('../../src/file', () => ({
+  writeEpgJsonFromXml: writeEpgJsonFromXmlMock,
+}));
+
+import {
+  buildEpgPwXml,
+  buildPwChannelJson,
+  parseChannelListFromHtml,
+  parsePwEpgXml,
+} from '../../src/epgs/epg_pw';
 
 describe('parseChannelListFromHtml', () => {
   it('should extract unique channel ids and trim names', () => {
@@ -44,7 +70,7 @@ describe('parsePwEpgXml', () => {
 });
 
 describe('buildPwChannelJson', () => {
-  it('should convert UTC XMLTV programmes into TVBox json items', () => {
+  it('should convert XMLTV programmes into China time TVBox json items', () => {
     const xml = `<?xml version="1.0"?>
 <tv>
   <channel id="100">
@@ -65,11 +91,99 @@ describe('buildPwChannelJson', () => {
       channel: 'cctv-1 综合',
       epg_data: [
         {
-          start: '00:30',
-          end: '01:00',
+          start: '08:30',
+          end: '09:00',
           title: '午夜新闻',
         },
       ],
     });
+  });
+});
+
+describe('buildEpgPwXml', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-03-14T12:00:00.000Z'));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    mkdirMock.mockClear();
+    writeFileMock.mockClear();
+    writeEpgJsonFromXmlMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('should fetch seven consecutive days and keep programme time in China HH:mm', async () => {
+    const expectedDates = [
+      '20240314',
+      '20240315',
+      '20240316',
+      '20240317',
+      '20240318',
+      '20240319',
+      '20240320',
+    ];
+
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url.includes('/areas/cn.html')) {
+        return new Response('<a href="/last/100.html?lang=zh-hans">CCTV-1 综合</a>', {
+          status: 200,
+        });
+      }
+
+      const date = new URL(url).searchParams.get('date');
+
+      return new Response(
+        `<?xml version="1.0"?>
+<tv>
+  <channel id="100">
+    <display-name lang="zh">CCTV-1 综合</display-name>
+  </channel>
+  <programme start="${date}000000 +0000" stop="${date}013000 +0000" channel="100">
+    <title lang="zh">节目 ${date}</title>
+  </programme>
+</tv>`,
+        { status: 200 }
+      );
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const xml = await buildEpgPwXml(10, 0);
+
+    const requestedDates = fetchMock.mock.calls
+      .slice(1)
+      .map(([url]) => new URL(String(url)).searchParams.get('date'));
+
+    expect(requestedDates).toEqual(expectedDates);
+    expect(mkdirMock).toHaveBeenCalledTimes(7);
+    expect(writeFileMock).toHaveBeenCalledTimes(7);
+    expect(writeEpgJsonFromXmlMock).toHaveBeenCalledTimes(1);
+    expect(writeEpgJsonFromXmlMock).toHaveBeenCalledWith('epg_pw', xml);
+    expect((xml.match(/<programme /g) ?? []).length).toBe(7);
+
+    for (const [index, [filePath, jsonText]] of writeFileMock.mock.calls.entries()) {
+      const expectedDateDir = expectedDates[index].replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+
+      expect(String(filePath)).toMatch(
+        new RegExp(`pw-7[\\\\/]${expectedDateDir}[\\\\/]CCTV-1 综合\\.json$`)
+      );
+
+      expect(JSON.parse(String(jsonText))).toEqual({
+        channel: 'cctv-1 综合',
+        epg_data: [
+          {
+            start: '08:00',
+            end: '09:30',
+            title: `节目 ${expectedDates[index]}`,
+          },
+        ],
+      });
+    }
   });
 });

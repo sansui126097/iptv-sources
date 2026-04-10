@@ -8,24 +8,23 @@
  *  4. 去重合并后由 Builder 输出一份完整的 XMLTV XML
  */
 
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { writeEpgJsonFromXml } from '../file';
 import type { EpgChannelJson } from './parser';
-import { writeFile } from 'fs/promises';
-import path from 'path';
-import { mkdir } from 'fs/promises';
-import { fileURLToPath } from 'url';
+import { formatHourMinute, parseXmltvTimestamp } from './time';
 import {
   buildXmlDocument,
   normalizeXmlList,
+  parseXmltvRoot,
   readXmlAttr,
   readXmltvChannelName,
   readXmltvProgrammeTitle,
-  parseXmltvRoot,
   type XmltvChannelNode,
   type XmltvNode,
   type XmltvProgrammeNode,
 } from './xml';
-import { formatHourMinute, parseXmltvUtcTimestamp } from './time';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -120,8 +119,8 @@ export function buildPwChannelJson(
     channel,
     epg_data: programmes
       .map((programme) => {
-        const startTime = parseXmltvUtcTimestamp(readXmlAttr(programme, 'start'));
-        const endTime = parseXmltvUtcTimestamp(readXmlAttr(programme, 'stop'));
+        const startTime = parseXmltvTimestamp(readXmlAttr(programme, 'start'));
+        const endTime = parseXmltvTimestamp(readXmlAttr(programme, 'stop'));
         if (!startTime || !endTime) return null;
 
         return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatHourMinute, parseXmltvTimeRange, parseXmltvUtcTimestamp } from '../../src/epgs/time';
+import { formatHourMinute, parseXmltvTimeRange, parseXmltvTimestamp } from '../../src/epgs/time';
 
 describe('parseXmltvTimeRange', () => {
   it('should extract date and hh:mm from XMLTV timestamps', () => {
@@ -13,17 +13,34 @@ describe('parseXmltvTimeRange', () => {
   it('should return null when timestamps are invalid', () => {
     expect(parseXmltvTimeRange('invalid', '20240314093000 +0800')).toBeNull();
   });
+
+  it('should convert UTC timestamps into China date and hh:mm', () => {
+    expect(parseXmltvTimeRange('20240314163000 +0000', '20240314180000 +0000')).toEqual({
+      date: '2024-03-15',
+      start: '00:30',
+      end: '02:00',
+    });
+  });
 });
 
-describe('parseXmltvUtcTimestamp', () => {
-  it('should parse compact XMLTV timestamp as UTC date', () => {
-    const date = parseXmltvUtcTimestamp('20240314093000 +0000');
+describe('parseXmltvTimestamp', () => {
+  it('should parse compact XMLTV timestamp with UTC offset', () => {
+    const date = parseXmltvTimestamp('20240314093000 +0000');
 
     expect(date?.toISOString()).toBe('2024-03-14T09:30:00.000Z');
+    const formatDate = formatHourMinute(date!);
+    expect(formatDate).toBe('17:30');
+  });
+
+  it('should parse compact XMLTV timestamp with positive timezone offset', () => {
+    const date = parseXmltvTimestamp('20240314093000 +0800');
+
+    expect(date?.toISOString()).toBe('2024-03-14T01:30:00.000Z');
+    expect(formatHourMinute(date!)).toBe('09:30');
   });
 
   it('should return null for invalid timestamp', () => {
-    expect(parseXmltvUtcTimestamp('bad')).toBeNull();
+    expect(parseXmltvTimestamp('bad')).toBeNull();
   });
 });
 
@@ -31,6 +48,6 @@ describe('formatHourMinute', () => {
   it('should format time as HH:mm', () => {
     const date = new Date(Date.UTC(2024, 2, 14, 9, 5, 0));
 
-    expect(formatHourMinute(date)).toBe('09:05');
+    expect(formatHourMinute(date)).toBe('17:05');
   });
 });

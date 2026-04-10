@@ -4,28 +4,50 @@ export interface XmltvTimeRange {
   end: string;
 }
 
-/** XMLTV start/stop 格式: 20240314080000 +0800 → 提取 YYYY-mm-dd 与 HH:mm */
-export function parseXmltvTimeRange(startStr: string, stopStr: string): XmltvTimeRange | null {
-  const startMatch = startStr?.match(/^(\d{14})/);
-  const stopMatch = stopStr?.match(/^(\d{14})/);
-  if (!startMatch || !stopMatch) return null;
+const DEFAULT_EPG_TIME_ZONE = 'Asia/Shanghai';
 
-  const start = startMatch[1];
-  const stop = stopMatch[1];
+function formatInEpgTimeZone(date: Date): {
+  date: string;
+  time: string;
+} {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: DEFAULT_EPG_TIME_ZONE,
+  }).formatToParts(date);
+
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '';
 
   return {
-    date: `${start.slice(0, 4)}-${start.slice(4, 6)}-${start.slice(6, 8)}`,
-    start: `${start.slice(8, 10)}:${start.slice(10, 12)}`,
-    end: `${stop.slice(8, 10)}:${stop.slice(10, 12)}`,
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    time: `${get('hour')}:${get('minute')}`,
   };
 }
 
-/**
- * 将 XMLTV 时间戳（YYYYmmddHHMMSS +ZZZZ）按其前 14 位解析为 UTC 时间。
- * epg.pw 返回的时间以 UTC 为准，时区偏移可忽略。
- */
-export function parseXmltvUtcTimestamp(timeStr: string): Date | null {
-  const match = timeStr?.match(/^(\d{14})/);
+/** XMLTV start/stop 格式: 20240314080000 +0800 → 提取 YYYY-mm-dd 与 HH:mm */
+export function parseXmltvTimeRange(startStr: string, stopStr: string): XmltvTimeRange | null {
+  const start = parseXmltvTimestamp(startStr);
+  const stop = parseXmltvTimestamp(stopStr);
+  if (!start || !stop) return null;
+
+  const startFormatted = formatInEpgTimeZone(start);
+  const stopFormatted = formatInEpgTimeZone(stop);
+
+  return {
+    date: startFormatted.date,
+    start: startFormatted.time,
+    end: stopFormatted.time,
+  };
+}
+
+/** 将 XMLTV 时间戳（YYYYmmddHHMMSS +ZZZZ）解析为正确的绝对时间。 */
+export function parseXmltvTimestamp(timeStr: string): Date | null {
+  const match = timeStr?.match(/^(\d{14})(?:\s+([+-])(\d{2})(\d{2}))?$/);
   if (!match) return null;
 
   const compact = match[1];
@@ -35,12 +57,15 @@ export function parseXmltvUtcTimestamp(timeStr: string): Date | null {
   const hour = Number(compact.slice(8, 10));
   const minute = Number(compact.slice(10, 12));
   const second = Number(compact.slice(12, 14));
+  const sign = match[2];
+  const offsetHours = Number(match[3] ?? '0');
+  const offsetMinutes = Number(match[4] ?? '0');
+  const totalOffsetMinutes =
+    sign === '-' ? -(offsetHours * 60 + offsetMinutes) : offsetHours * 60 + offsetMinutes;
 
-  return new Date(Date.UTC(year, month, day, hour, minute, second));
+  return new Date(Date.UTC(year, month, day, hour, minute - totalOffsetMinutes, second));
 }
 
 export function formatHourMinute(date: Date): string {
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
+  return formatInEpgTimeZone(date).time;
 }

@@ -73,6 +73,26 @@ describe('parseEpgXml', () => {
     expect(epg[0].start).toBe('08:00');
     expect(epg[0].end).toBe('09:00');
   });
+
+  it('should convert UTC XMLTV timestamps into China date and time', () => {
+    const xml = `<?xml version="1.0"?>
+<tv>
+  <channel id="1" name="CCTV-1">
+    <display-name>CCTV-1</display-name>
+  </channel>
+  <programme start="20240314163000 +0000" stop="20240314180000 +0000" channel="1">
+    <title>晚间节目</title>
+  </programme>
+</tv>`;
+
+    const out = parseEpgXml(xml);
+
+    expect(out).toHaveLength(1);
+    expect(out[0].date).toBe('2024-03-15');
+    expect(out[0].item.start).toBe('00:30');
+    expect(out[0].item.end).toBe('02:00');
+  });
+
   it('should parse XMLTV format and return date, channel, item from xml file', () => {
     const xml = fs.readFileSync(path.join(__dirname, 'e.xml'), 'utf-8');
     const out = parseEpgXml(xml);
