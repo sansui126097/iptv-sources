@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mkdirMock, writeFileMock, writeEpgJsonFromXmlMock } = vi.hoisted(() => ({
+const { mkdirMock, writeFileMock } = vi.hoisted(() => ({
   mkdirMock: vi.fn(),
   writeFileMock: vi.fn(),
-  writeEpgJsonFromXmlMock: vi.fn(),
 }));
 
 vi.mock('fs/promises', async () => {
@@ -15,10 +14,6 @@ vi.mock('fs/promises', async () => {
     writeFile: writeFileMock,
   };
 });
-
-vi.mock('../../src/file', () => ({
-  writeEpgJsonFromXml: writeEpgJsonFromXmlMock,
-}));
 
 import {
   buildEpgPwXml,
@@ -107,7 +102,6 @@ describe('buildEpgPwXml', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
     mkdirMock.mockClear();
     writeFileMock.mockClear();
-    writeEpgJsonFromXmlMock.mockClear();
   });
 
   afterEach(() => {
@@ -117,14 +111,15 @@ describe('buildEpgPwXml', () => {
   });
 
   it('should fetch seven consecutive days and keep programme time in China HH:mm', async () => {
+    // 与 buildEpgPwXml 中 dates：当天起往前 5 天、往后 1 天（共 7 天）一致；系统时间固定为 2024-03-14
     const expectedDates = [
+      '20240309',
+      '20240310',
+      '20240311',
+      '20240312',
+      '20240313',
       '20240314',
       '20240315',
-      '20240316',
-      '20240317',
-      '20240318',
-      '20240319',
-      '20240320',
     ];
 
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
@@ -163,8 +158,6 @@ describe('buildEpgPwXml', () => {
     expect(requestedDates).toEqual(expectedDates);
     expect(mkdirMock).toHaveBeenCalledTimes(7);
     expect(writeFileMock).toHaveBeenCalledTimes(7);
-    expect(writeEpgJsonFromXmlMock).toHaveBeenCalledTimes(1);
-    expect(writeEpgJsonFromXmlMock).toHaveBeenCalledWith('epg_pw', xml);
     expect((xml.match(/<programme /g) ?? []).length).toBe(7);
 
     for (const [index, [filePath, jsonText]] of writeFileMock.mock.calls.entries()) {
