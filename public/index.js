@@ -163,9 +163,16 @@ class PathParser {
 }
 
 (function () {
+  function dateFormat(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
   function replaceDomain(domain) {
     document.querySelectorAll('code').forEach(code => {
-      code.textContent = code.textContent.replace('{site_url}', 'https://' + domain);
+      code.textContent = code.textContent.replace('{site_url}', 'https://' + domain)
+      .replace('{today}', dateFormat(new Date()));
     });
   }
   /**

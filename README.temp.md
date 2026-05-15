@@ -48,6 +48,11 @@ EPG 链接格式（`{date}`、`{name}` 由 TVBox 自动替换）：
 
 在 TVBox 直播源 JSON 的 `epg` 字段中填入上述任一完整 URL 即可查看节目预告。
 
+可以通过以下两个链接来测试 tvbox 中的 json 地址是否正确：
+
+- 51zmt 当天聚合测试链接：`{site_url}/epg/51zmt/{today}/CCTV1.json`
+- epg.pw 7天聚合测试链接：`{site_url}/epg/pw-7/{today}/CCTV1.json`
+
 ### TVBox JSON 配置文件链接修改
 某些第三方 TVBox 软件不支持直接修改直播源 JSON，必须使用 TVBox JSON 配置文件链接进行修改，这里基于 [王小二放牛娃](https://www.xn--4kq62z5rby2qupq9ub.top/) 提供的配置文件，将 EPG 配置为 `epg.pw 7天聚合`，并将直播源替换为本项目中采集的直播源。
 

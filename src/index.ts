@@ -45,9 +45,9 @@ cleanFiles();
               sourcesCollector.collect
             );
 
-            writeM3u(sr.f_name, m3u);
-            writeM3uToTxt(sr.name, sr.f_name, m3u);
-            writeSources(sr.name, sr.f_name, sourcesCollector.result());
+            await writeM3u(sr.f_name, m3u);
+            await writeM3uToTxt(sr.name, sr.f_name, m3u);
+            await writeSources(sr.name, sr.f_name, sourcesCollector.result());
             updateChannelList(sr.name, sr.f_name, m3u);
             return ['normal', count];
           }
@@ -73,7 +73,7 @@ cleanFiles();
                 (parseInt(hrtime.bigint().toString()) - parseInt(now.toString())) / 10e6
               } ms`
             );
-            writeEpgXML(epg_sr.f_name, text as string);
+            await writeEpgXML(epg_sr.f_name, text as string);
             return ['normal'];
           }
           console.log(`[WARNING] EPG ${epg_sr.name} get failed!`);
@@ -90,7 +90,7 @@ cleanFiles();
     try {
       console.log('[TASK] Build EPG from epg.pw ...');
       const epgPwXml = await buildEpgPwXml();
-      writeEpgXML('epg_pw', epgPwXml);
+      await writeEpgXML('epg_pw', epgPwXml);
       console.log('[TASK] EPG from epg.pw written successfully');
     } catch (e) {
       console.warn('[WARNING] EPG from epg.pw failed:', e);
@@ -107,7 +107,7 @@ cleanFiles();
     ) as Array<[string | undefined]>;
     mergeTxts();
     mergeSources();
-    writeEpgJsonByDate();
+    await writeEpgJsonByDate();
     await writeTvBoxLiveJson('tvbox', sources);
     updateChannelsJson(sources, sources_res, epgs_sources);
     updateReadme(sources, sources_res, epgs_sources, epgs_res);

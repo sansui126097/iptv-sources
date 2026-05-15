@@ -25,6 +25,7 @@ import {
   type XmltvNode,
   type XmltvProgrammeNode,
 } from './xml';
+import { createSubDirectory } from '../file';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -168,7 +169,7 @@ export async function buildEpgPwXml(batchSize = 10, delayMs = 300): Promise<stri
   const channelNodes: XmltvChannelNode[] = [];
   const programmeNodes: XmltvProgrammeNode[] = [];
   // const epgDir = makeEpgDir();
-  const basePath = path.join(__dirname, '../../m3u/epg/pw-7');
+  const basePath = await createSubDirectory('./m3u/epg/pw-7');
 
   for (const date of dates) {
     console.log(`[EPG.PW] Fetching EPG for date ${date} ...`);
@@ -177,12 +178,14 @@ export async function buildEpgPwXml(batchSize = 10, delayMs = 300): Promise<stri
     for (let i = 0; i < channels.length; i += batchSize) {
       const batch = channels.slice(i, i + batchSize);
       const results = await Promise.allSettled(batch.map((ch) => fetchChannelEpg(ch.id, date)));
-
-      for (const result of results) {
-        if (result.status !== 'fulfilled' || !result.value) continue;
-
+      const writePromises = results.map(async (result) => {
+        if (result.status !== 'fulfilled' || !result.value) {
+          return;
+        }
         const { channel, programmes } = parsePwEpgXml(result.value);
-        if (!channel) continue;
+        if (!channel) {
+          return;
+        }
 
         const channelId = channelIdFromNode(channel);
         if (channelId && !seenChannelIds.has(channelId)) {
@@ -192,14 +195,12 @@ export async function buildEpgPwXml(batchSize = 10, delayMs = 300): Promise<stri
 
         const json = buildPwChannelJson(channel, programmes);
         const currentChannelName = genTvBoxChannelName(json.channel);
-
-        await writeFile(
-          path.join(savePath as string, `${currentChannelName}.json`),
-          JSON.stringify(json, null, 2)
-        );
+        const savedFullPath = path.join(savePath, `${currentChannelName}.json`);
+        await writeFile(savedFullPath, JSON.stringify(json, null, 2));
+        console.info(`[EPG.PW] Saved EPG for channel ${json.channel} to (${savedFullPath})`);
         programmeNodes.push(...programmes);
-      }
-
+      });
+      await Promise.all(writePromises);
       const progress = Math.min(i + batchSize, channels.length);
       console.log(`[EPG.PW]   [${date}] ${progress}/${channels.length}`);
 
