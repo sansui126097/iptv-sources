@@ -40,6 +40,7 @@ jobs:
       - run: pnpm install
       - run: pnpm build
       - run: pnpm build:static
+      - run: rm -rf ./dist/epg
 
       # - name: "Jekyll theme"
       #   run: mv ./_config.temp.yml ./m3u/_config.yml
