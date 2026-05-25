@@ -1,11 +1,11 @@
-name: update script
+名称: update script
 
 on:
   push:
-    branches: [main]
+分支: [主页]
 
 jobs:
-  build:
+构建:
     runs-on: ubuntu-latest
 
     strategy:
@@ -16,18 +16,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Use Node.js ${{ matrix.node-version }}
+      - 名称: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+版本: 10
           run_install: false
-      - name: Get pnpm store directory
+      - 名称: Get pnpm store directory
         id: pnpm-store
         shell: bash
-        run: |
+运行: |
             echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
   
       - name: Setup pnpm cache
@@ -40,6 +40,7 @@ jobs:
       - run: pnpm install
       - run: pnpm build
       - run: pnpm build:static
+      - run: rm -rf ./dist/epg
 
       # - name: "Jekyll theme"
       #   run: mv ./_config.temp.yml ./m3u/_config.yml
