@@ -1,4 +1,4 @@
-name: update schedule
+名称: update schedule
 
 on:
   schedule:
@@ -6,13 +6,13 @@ on:
   workflow_dispatch:  # ← 添加这行，允许手动触发测试
 
 permissions:
-  contents: write
+  contents: 编写
 
 jobs:
-  build:
+构建:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: 编写
 
     strategy:
       matrix:
@@ -25,18 +25,18 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - 名称: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+版本: 10
           run_install: false
-      - name: Get pnpm store directory
+      - 名称: Get pnpm store directory
         id: pnpm-store
         shell: bash
-        run: |
+运行: |
             echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
       - name: Setup pnpm cache
         uses: actions/cache@v3
@@ -49,13 +49,14 @@ jobs:
       - run: pnpm build
       - run: pnpm m3u
       - run: sudo apt-get install -y tree
+      - run: rm -rf ./m3u/epg || true
 
       - name: Publish m3u (Cloudflare direct upload or empty commit)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PROJECT_NAME: ${{ vars.PROJECT_NAME || secrets.PROJECT_NAME }}
-        run: |
+运行: |
           if [ -n "${CLOUDFLARE_API_TOKEN}" ]; then
             pnpm static
             tree m3u
