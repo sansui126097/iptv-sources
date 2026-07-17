@@ -1,0 +1,19 @@
+name: Keepalive Workflow
+
+on:
+  schedule:
+    # 每月1号凌晨00:00运行一次，频率远低于60天，足够保持活跃
+    - cron: '0 0 1 * *'
+  # 允许你手动触发
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  keepalive:
+    name: Keepalive Workflow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gautamkrishnar/keepalive-workflow@v2
